@@ -112,6 +112,8 @@ v1 of codeprint delivers **seven features** covering the L2 scope decided in ide
 - Logs (progress, errors, warnings) always go to stderr. stdout is reserved for the requested output.
 - `NO_COLOR` env var disables colors even on TTY.
 - Compact JSON by default; `--pretty-json` produces indented JSON (for humans reading files).
+- **Default progress indicator (added in architecture 4.3):** when stderr is a TTY, the default invocation shows an indeterminate spinner + running file counter on stderr (`⠋ scanning… 1,234 files`), cleared on completion. **Suppressed when stderr is not a TTY** (CI, pipe, redirect) to keep pipeline logs clean. Honors `NO_COLOR`. See [../architecture/api-contracts.md](../architecture/api-contracts.md).
+- **Enriched pretty summary:** the `pretty` output ends with a human summary — per-language split (%, LOC, files), totals (code/comment/blank), build systems, framework count, and wall-clock scan time. Timing appears in the pretty/`--verbose` human output only — **never in the JSON `fingerprint` or `_meta`** (duration is a runner property, not a codebase property; keeps the artifact reproducible per NFR-2).
 
 ### F-6 Library API + CLI — MUST
 
@@ -119,7 +121,7 @@ v1 of codeprint delivers **seven features** covering the L2 scope decided in ide
 
 **Acceptance criteria:**
 - Import path: `github.com/ShadowOpenTech/codeprint/pkg/codeprint`.
-- Exactly one public entry point: `Scan(root string, opts ...Option) (*Fingerprint, error)`.
+- Exactly one public entry point: `Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error)`. (`ctx` added in architecture 4.3 for cancellation/timeout at fleet scale — see [../architecture/api-contracts.md](../architecture/api-contracts.md).)
 - `Option` is an exported function type; options follow `WithX` naming (`WithConcurrency`, `WithIgnoreFile`, `WithIncludeHidden`, `WithMaxFileSize`).
 - `Fingerprint` struct mirrors the JSON schema exactly; all exported, all with `json:` struct tags.
 - CLI lives at `cmd/codeprint`. CLI parses flags, constructs `Options`, calls `Scan()`, serializes. No business logic in CLI.
@@ -241,3 +243,4 @@ Codes chosen per [sysexits.h BSD convention](https://man7.org/linux/man-pages/ma
 
 - 2026-04-22: initial draft.
 - 2026-05-27: confirmed. Resolved before lock: F-3 detection changed to flat full-tree list with marker paths (was "root + one level down"); F-7 `$schema` immutable-URL requirement scoped to v1.0.0 GA (was unconditional, conflicted with v0.x freedom); F-2 added known limitation note for header-less generated files. Exit-code conflict with `user-flows.md` resolved in favor of NFR-6 sysexits codes (flows doc updated to match).
+- 2026-05-30: architecture-phase amendments (4.3 API Design). F-6: `Scan` now takes `ctx context.Context` as first param (cancellation/timeout). F-5: added default TTY-gated progress spinner (CI-silent) + enriched pretty summary with timing; timing is human-output-only, never in JSON.
