@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # create GitHub Releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # Surfaced as env so the JFrog step's `if:` can test them (secrets are not
+      # directly usable in if-expressions).
+      ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for changelog
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Verify schema is current
+        run: go run ./cmd/schemagen -check schema/codeprint-v1.schema.json
+
+      - name: GoReleaser (build + GitHub Releases mirror)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Primary distribution: JFrog Artifactory (flows F1). Runs only when the
+      # Artifactory secrets are configured — otherwise skipped (binaries still
+      # reach GitHub Releases above). Configure ARTIFACTORY_URL + ARTIFACTORY_TOKEN
+      # in repo secrets to enable.
+      - name: Publish to JFrog Artifactory
+        if: ${{ env.ARTIFACTORY_URL != '' && env.ARTIFACTORY_TOKEN != '' }}
+        run: |
+          curl -fL https://install-cli.jfrog.io | sh
+          jf c add prod --url="$ARTIFACTORY_URL" --access-token="$ARTIFACTORY_TOKEN" --interactive=false
+          jf rt upload "dist/*.tar.gz" "codeprint-releases/${GITHUB_REF_NAME}/"
+          jf rt upload "dist/*.zip" "codeprint-releases/${GITHUB_REF_NAME}/"
+          jf rt upload "dist/checksums.txt" "codeprint-releases/${GITHUB_REF_NAME}/"

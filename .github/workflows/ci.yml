@@ -53,6 +53,9 @@ jobs:
       - name: Coverage gate
         run: make cover
 
+      - name: Benchmark (smoke; regression gate pending perf corpus)
+        run: go test -bench=. -benchtime=1x -run=^$ ./pkg/codeprint
+
       - name: govulncheck
         run: govulncheck ./...
 

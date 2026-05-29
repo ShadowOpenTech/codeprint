@@ -1,0 +1,63 @@
+version: 2
+
+project_name: codeprint
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: codeprint
+    main: ./cmd/codeprint
+    binary: codeprint
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      # NFR-3 targets: linux amd64/arm64, darwin amd64/arm64, windows amd64.
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: codeprint
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE*
+      - schema/codeprint-v1.schema.json
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Fixes
+      regexp: '^fix'
+      order: 1
+    - title: Others
+      order: 99
+
+release:
+  github:
+    owner: ShadowOpenTech
+    name: codeprint
+  prerelease: auto # v0.x.y-rc.* are flagged pre-release
+
+# JFrog Artifactory (primary distribution per flows F1) is published by a
+# separate CI step using the jfrog CLI (needs ARTIFACTORY_URL/ARTIFACTORY_TOKEN
+# secrets) — see .github/workflows/release.yml. OSS goreleaser handles the
+# GitHub Releases mirror + checksums above.

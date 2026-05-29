@@ -10,7 +10,7 @@ PKGS      := ./...
 COVERPKGS := github.com/ShadowOpenTech/codeprint/pkg/codeprint,github.com/ShadowOpenTech/codeprint/internal/...
 COVER_MIN ?= 85.0
 
-.PHONY: all build test cover lint fmt vet vuln schema schema-check determinism tools clean verify
+.PHONY: all build test cover lint fmt vet vuln schema schema-check determinism bench tools clean verify
 
 all: verify
 
@@ -50,6 +50,9 @@ schema-check: ## fail if the committed schema has drifted
 
 determinism: build ## scan a path twice and diff the fingerprint (set DIR=...)
 	@scripts/determinism.sh $(if $(DIR),$(DIR),.)
+
+bench: ## throughput benchmark (NFR-1)
+	$(GO) test -bench=. -benchmem -run=^$$ ./pkg/codeprint
 
 tools: ## install pinned dev tools
 	$(GO) install mvdan.cc/gofumpt@latest
