@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ShadowOpenTech/codeprint/pkg/codeprint/output",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of the JSON schema this document conforms to"
+    },
+    "_meta": {
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "description": "Schema version (major.minor)"
+        },
+        "producer": {
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Producer name (codeprint)"
+            },
+            "version": {
+              "type": "string",
+              "description": "Producer semantic version"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "name",
+            "version"
+          ],
+          "description": "Tool that produced this fingerprint"
+        },
+        "generated_at": {
+          "type": "string",
+          "description": "RFC3339 production time; the only timestamp"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "schema_version",
+        "producer"
+      ],
+      "description": "Volatile envelope metadata; ignore when diffing fingerprints"
+    },
+    "fingerprint": {
+      "properties": {
+        "totals": {
+          "properties": {
+            "files": {
+              "type": "integer",
+              "description": "Total files seen (incl. binary/vendored/etc.)"
+            },
+            "code": {
+              "type": "integer",
+              "description": "Total code lines"
+            },
+            "comment": {
+              "type": "integer",
+              "description": "Total comment lines"
+            },
+            "blank": {
+              "type": "integer",
+              "description": "Total blank lines"
+            },
+            "bytes": {
+              "type": "integer",
+              "description": "Total bytes"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "files",
+            "code",
+            "comment",
+            "blank",
+            "bytes"
+          ],
+          "description": "Repository-wide totals"
+        },
+        "languages": {
+          "items": {
+            "properties": {
+              "language": {
+                "type": "string",
+                "description": "Language ID (go-enry/linguist)"
+              },
+              "files": {
+                "type": "integer",
+                "description": "Files of this language"
+              },
+              "code": {
+                "type": "integer",
+                "description": "Code lines"
+              },
+              "comment": {
+                "type": "integer",
+                "description": "Comment lines"
+              },
+              "blank": {
+                "type": "integer",
+                "description": "Blank lines"
+              },
+              "percent": {
+                "type": "number",
+                "description": "Share of total code LOC"
+              },
+              "comment_aware": {
+                "type": "boolean",
+                "description": "False when no comment-syntax mapping exists (counts fall back to non-blank=code)"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "language",
+              "files",
+              "code",
+              "comment",
+              "blank",
+              "percent",
+              "comment_aware"
+            ]
+          },
+          "type": "array",
+          "description": "Per-language rollups"
+        },
+        "files": {
+          "items": {
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Repo-relative path (never absolute)"
+              },
+              "language": {
+                "type": "string",
+                "description": "Language ID; empty if undetected"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "source",
+                  "test",
+                  "generated",
+                  "vendored",
+                  "binary",
+                  "minified"
+                ]
+              },
+              "flags": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "description": "Non-exclusive properties"
+              },
+              "code": {
+                "type": "integer",
+                "description": "Code lines"
+              },
+              "comment": {
+                "type": "integer",
+                "description": "Comment lines"
+              },
+              "blank": {
+                "type": "integer",
+                "description": "Blank lines"
+              },
+              "bytes": {
+                "type": "integer",
+                "description": "File size in bytes"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "path",
+              "language",
+              "kind",
+              "flags",
+              "code",
+              "comment",
+              "blank",
+              "bytes"
+            ]
+          },
+          "type": "array",
+          "description": "Per-file records"
+        },
+        "build_systems": {
+          "items": {
+            "properties": {
+              "ecosystem": {
+                "type": "string",
+                "description": "Ecosystem ID"
+              },
+              "path": {
+                "type": "string",
+                "description": "Repo-relative path to the marker file"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "ecosystem",
+              "path"
+            ]
+          },
+          "type": "array",
+          "description": "Detected build systems"
+        },
+        "framework_hints": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Framework name"
+              },
+              "ecosystem": {
+                "type": "string",
+                "description": "Owning ecosystem"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "evidence": {
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Repo-relative path to the manifest"
+                  },
+                  "keyword": {
+                    "type": "string",
+                    "description": "Trigger keyword found in the manifest"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "path",
+                  "keyword"
+                ],
+                "description": "What triggered the hint"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "name",
+              "ecosystem",
+              "confidence",
+              "evidence"
+            ]
+          },
+          "type": "array",
+          "description": "Framework hints"
+        },
+        "container": {
+          "properties": {
+            "dockerfile_present": {
+              "type": "boolean",
+              "description": "True if a Dockerfile was found"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "dockerfile_present"
+          ],
+          "description": "Container-related signals"
+        },
+        "errors": {
+          "items": {
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Repo-relative path that failed"
+              },
+              "reason": {
+                "type": "string",
+                "description": "OS/internal error reason; never file content"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "path",
+              "reason"
+            ]
+          },
+          "type": "array",
+          "description": "Non-fatal per-file errors"
+        },
+        "workspaces": {
+          "items": {
+            "properties": {},
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "type": "array",
+          "description": "Reserved for v2; always null in v1"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "totals",
+        "languages",
+        "files",
+        "build_systems",
+        "framework_hints",
+        "container",
+        "errors",
+        "workspaces"
+      ],
+      "description": "The deterministic codebase fingerprint"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "_meta",
+    "fingerprint"
+  ]
+}

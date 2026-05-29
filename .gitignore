@@ -39,3 +39,8 @@ Thumbs.db
 
 # Claude / project tooling
 .claude/settings.local.json
+
+# Build artifacts
+/bin/
+coverage.out
+*.out

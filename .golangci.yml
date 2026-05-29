@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - gosec
+    - revive
+    - misspell
+    - gocritic
+    - bodyclose
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+
+  exclusions:
+    rules:
+      # Test files may skip a few security/style checks that target prod code.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
