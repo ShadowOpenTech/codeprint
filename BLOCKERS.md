@@ -33,3 +33,17 @@ An in-tree symlink to a regular file is followed and counted, so its target's
 LOC is counted twice (once via the real path, once via the link). Deferred:
 dedup by resolved path/inode in a later milestone. Escaping symlinks are
 correctly skipped (NFR-8). Symlinked directories are not descended in M1.
+
+## 4. Decision made (for your review) — minified classification priority
+
+Spec F-2 ordered file-kind priority as binary > vendored > generated > minified.
+In practice enry/linguist folds minified files into "vendored" (.min.* extension)
+and "generated" (very long lines), which made the dedicated `minified` kind
+unreachable. Since `minified` is the more specific, actionable signal for
+scanners (skip built assets), I refined the priority to:
+
+    binary > minified > vendored > generated > test > source
+
+`minified` = explicit `.min.js`/`.min.css` extension OR the long-line heuristic.
+If you prefer strict spec-order instead, revert internal/classify/classify.go's
+switch order. Otherwise I'll fold this into a product-spec F-2 amendment.
