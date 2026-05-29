@@ -18,6 +18,10 @@ type expectedCorpus struct {
 		Ecosystem string `json:"ecosystem"`
 		Path      string `json:"path"`
 	} `json:"build_systems"`
+	FrameworkHints []struct {
+		Name      string `json:"name"`
+		Ecosystem string `json:"ecosystem"`
+	} `json:"framework_hints"`
 	Container struct {
 		DockerfilePresent bool `json:"dockerfile_present"`
 	} `json:"container"`
@@ -81,5 +85,23 @@ func TestCorpusAccuracy(t *testing.T) {
 
 	if fp.Container.DockerfilePresent != exp.Container.DockerfilePresent {
 		t.Errorf("dockerfile_present: got %v want %v", fp.Container.DockerfilePresent, exp.Container.DockerfilePresent)
+	}
+
+	// Framework hints: exact set match by (ecosystem, name).
+	gotFW := map[string]bool{}
+	for _, h := range fp.FrameworkHints {
+		gotFW[h.Ecosystem+"/"+h.Name] = true
+	}
+	wantFW := map[string]bool{}
+	for _, h := range exp.FrameworkHints {
+		wantFW[h.Ecosystem+"/"+h.Name] = true
+		if !gotFW[h.Ecosystem+"/"+h.Name] {
+			t.Errorf("FN: framework hint %s/%s missing", h.Ecosystem, h.Name)
+		}
+	}
+	for k := range gotFW {
+		if !wantFW[k] {
+			t.Errorf("FP: unexpected framework hint %s", k)
+		}
 	}
 }

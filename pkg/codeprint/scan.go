@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 
 	"github.com/ShadowOpenTech/codeprint/internal/buildsys"
 	"github.com/ShadowOpenTech/codeprint/internal/classify"
 	"github.com/ShadowOpenTech/codeprint/internal/detect"
+	"github.com/ShadowOpenTech/codeprint/internal/framework"
 	"github.com/ShadowOpenTech/codeprint/internal/loc"
 	"github.com/ShadowOpenTech/codeprint/internal/walk"
 )
@@ -60,6 +62,17 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 		fp.BuildSystems = append(fp.BuildSystems, BuildSystem{Ecosystem: m.Ecosystem, Path: m.Path})
 	}
 	fp.Container.DockerfilePresent = dockerfile
+
+	// Framework hints: parse the detected manifests (best-effort, F-4).
+	absRoot, _ := filepath.Abs(root)
+	for _, h := range framework.Detect(absRoot, markers) {
+		fp.FrameworkHints = append(fp.FrameworkHints, FrameworkHint{
+			Name:       h.Name,
+			Ecosystem:  h.Ecosystem,
+			Confidence: Confidence(h.Confidence),
+			Evidence:   Evidence{Path: h.Path, Keyword: h.Keyword},
+		})
+	}
 
 	return fp, nil
 }
