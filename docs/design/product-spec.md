@@ -198,7 +198,7 @@ Codes chosen per [sysexits.h BSD convention](https://man7.org/linux/man-pages/ma
 
 - No network calls. Ever. Verified by build-time test with network disabled.
 - No file writes outside the `--out` path.
-- Symlinks followed but with loop detection (max follow-depth 40).
+- Symlinks followed but with loop detection (max follow-depth 40) **and workspace containment**: a symlink is followed only while its resolved target stays inside the workspace root; targets that escape the root are skipped (not followed). Added in architecture 4.5 — see [../architecture/security-audit.md](../architecture/security-audit.md) finding #1.
 - File paths in output are repo-relative (never absolute) — avoids leaking CI paths/usernames.
 - File contents are read but never emitted in the output. Only metadata.
 
@@ -244,3 +244,4 @@ Codes chosen per [sysexits.h BSD convention](https://man7.org/linux/man-pages/ma
 - 2026-04-22: initial draft.
 - 2026-05-27: confirmed. Resolved before lock: F-3 detection changed to flat full-tree list with marker paths (was "root + one level down"); F-7 `$schema` immutable-URL requirement scoped to v1.0.0 GA (was unconditional, conflicted with v0.x freedom); F-2 added known limitation note for header-less generated files. Exit-code conflict with `user-flows.md` resolved in favor of NFR-6 sysexits codes (flows doc updated to match).
 - 2026-05-30: architecture-phase amendments (4.3 API Design). F-6: `Scan` now takes `ctx context.Context` as first param (cancellation/timeout). F-5: added default TTY-gated progress spinner (CI-silent) + enriched pretty summary with timing; timing is human-output-only, never in JSON.
+- 2026-05-30: architecture-phase amendment (4.5 Security Check). NFR-8: symlink following now requires workspace containment (out-of-tree targets skipped).
