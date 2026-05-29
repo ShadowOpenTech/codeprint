@@ -15,8 +15,9 @@
     "src/ts/util.spec.ts":     { "language": "TypeScript", "kind": "test" },
 
     "gen/api.pb.go":           { "language": "Go",         "kind": "generated" },
-    "testfiles/bundle.min.js": { "language": "JavaScript", "kind": "minified" },
+    "testfiles/packed.js":     { "language": "JavaScript", "kind": "minified", "_note": "no .min extension; caught by long-line heuristic" },
 
+    "testfiles/bundle.min.js": { "language": "JavaScript", "kind": "minified", "_note": ".min.js extension; explicit minified wins over enry vendoring" },
     "vendor/leftpad/leftpad.js":   { "kind": "vendored" },
     "node_modules/dep/index.js":   { "kind": "vendored" },
 

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ShadowOpenTech/codeprint/internal/buildsys"
 	"github.com/ShadowOpenTech/codeprint/internal/classify"
 	"github.com/ShadowOpenTech/codeprint/internal/detect"
 	"github.com/ShadowOpenTech/codeprint/internal/loc"
@@ -46,7 +47,21 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 	if err != nil {
 		return nil, err
 	}
-	return assemble(processed, scanErrs, cfg), nil
+
+	fp := assemble(processed, scanErrs, cfg)
+
+	// Build-system detection: flat full-tree marker scan over all walked paths.
+	paths := make([]string, len(refs))
+	for i, ref := range refs {
+		paths[i] = ref.Rel
+	}
+	markers, dockerfile := buildsys.Detect(paths)
+	for _, m := range markers {
+		fp.BuildSystems = append(fp.BuildSystems, BuildSystem{Ecosystem: m.Ecosystem, Path: m.Path})
+	}
+	fp.Container.DockerfilePresent = dockerfile
+
+	return fp, nil
 }
 
 // processedFile is the per-file result before assembly.
@@ -127,8 +142,11 @@ func processOne(ref walk.FileRef) (processedFile, *ScanError) {
 
 	det := detector.Detect(ref.Rel, content)
 	rec.Language = det.Language
-	kind := classify.Kind(det)
+	kind, flags := classify.Classify(ref.Rel, content, det)
 	rec.Kind = Kind(kind)
+	if len(flags) > 0 {
+		rec.Flags = flags
+	}
 
 	pf := processedFile{rec: rec}
 	if classify.CountsLOC(kind) {
