@@ -18,7 +18,10 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          # Build/test on the latest stable Go (patched stdlib for govulncheck).
+          # The module floor stays go 1.23 (F-6) — that is the consumer minimum,
+          # separate from our build toolchain.
+          go-version: stable
           cache: true
 
       - name: Install tools
