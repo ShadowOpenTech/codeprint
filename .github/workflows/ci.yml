@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          # Build/test on the latest stable Go (patched stdlib for govulncheck).
+          # The module floor stays go 1.23 (F-6) — that is the consumer minimum,
+          # separate from our build toolchain.
+          go-version: stable
+          cache: true
+
+      - name: Install tools
+        run: |
+          go install mvdan.cc/gofumpt@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+      - name: Format check (gofumpt)
+        run: |
+          if [ -n "$(gofumpt -l cmd internal pkg)" ]; then
+            echo "files need formatting (run make fmt):"
+            gofumpt -l cmd internal pkg
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        run: golangci-lint run
+
+      - name: Schema drift gate
+        run: go run ./cmd/schemagen -check schema/codeprint-v1.schema.json
+
+      - name: Test (race)
+        run: go test -race ./...
+
+      - name: Coverage gate
+        run: make cover
+
+      - name: govulncheck
+        run: govulncheck ./...
+
+      - name: Static build (no CGo) and offline build property
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          go build -o /tmp/codeprint ./cmd/codeprint
+          GOPROXY=off go build -o /dev/null ./cmd/codeprint

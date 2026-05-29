@@ -1,0 +1,52 @@
+{
+  "_comment": "Ground-truth labels for codeprint TP/FP/FN tests. Paths are repo-relative. This file is the oracle: codeprint output is compared against it for precision/recall on language detection, file classification, build-system detection, and framework hints.",
+
+  "files": {
+    "src/go/server.go":        { "language": "Go",         "kind": "source" },
+    "src/py/app.py":           { "language": "Python",     "kind": "source" },
+    "src/js/index.js":         { "language": "JavaScript", "kind": "source" },
+    "src/ts/util.ts":          { "language": "TypeScript", "kind": "source" },
+    "src/java/App.java":       { "language": "Java",       "kind": "source" },
+    "src/rb/lib.rb":           { "language": "Ruby",       "kind": "source" },
+    "src/rust/lib.rs":         { "language": "Rust",       "kind": "source" },
+
+    "src/go/server_test.go":   { "language": "Go",         "kind": "test" },
+    "src/py/test_app.py":      { "language": "Python",     "kind": "test" },
+    "src/ts/util.spec.ts":     { "language": "TypeScript", "kind": "test" },
+
+    "gen/api.pb.go":           { "language": "Go",         "kind": "generated" },
+    "testfiles/bundle.min.js": { "language": "JavaScript", "kind": "minified" },
+
+    "vendor/leftpad/leftpad.js":   { "kind": "vendored" },
+    "node_modules/dep/index.js":   { "kind": "vendored" },
+
+    "testfiles/blob.bin":      { "kind": "binary" }
+  },
+
+  "build_systems": [
+    { "ecosystem": "go-modules", "path": "go.mod" },
+    { "ecosystem": "npm",        "path": "manifests/npm/package.json" },
+    { "ecosystem": "pip",        "path": "manifests/python/requirements.txt" },
+    { "ecosystem": "maven",      "path": "manifests/maven/pom.xml" },
+    { "ecosystem": "cargo",      "path": "manifests/cargo/Cargo.toml" },
+    { "ecosystem": "bundler",    "path": "manifests/bundler/Gemfile" }
+  ],
+
+  "framework_hints": [
+    { "name": "react",       "ecosystem": "npm" },
+    { "name": "express",     "ecosystem": "npm" },
+    { "name": "django",      "ecosystem": "pip" },
+    { "name": "flask",       "ecosystem": "pip" },
+    { "name": "spring-boot", "ecosystem": "maven" },
+    { "name": "actix",       "ecosystem": "cargo" },
+    { "name": "rails",       "ecosystem": "bundler" }
+  ],
+
+  "container": { "dockerfile_present": true },
+
+  "symlinks": {
+    "_comment": "Behavioral expectations, not file-kind assertions (M1 walk owns the exact policy).",
+    "src/py/intree_link.go":        { "in_tree": true,  "expected": "followed (resolves within workspace)" },
+    "testfiles/escaping_link":      { "in_tree": false, "expected": "NOT followed — escapes workspace root (NFR-8 containment)" }
+  }
+}
