@@ -26,3 +26,10 @@ git submodule add https://github.com/ShadowOpenTech/codeprint-testcorpus testdat
 ## 2. Release publish (JFrog + real v0.1.0 tag) — DEFERRED BY DESIGN
 
 Per your auto-mode decision: build **release-ready**, stop before the real tag/publish. JFrog credentials / GitHub-Actions secrets are not available to me, and a public tag is irreversible. The exact tag + publish steps will be in the final M5 report / deploy checklist.
+
+## 3. Known issue (tech debt, non-blocking) — in-tree symlink double-counts
+
+An in-tree symlink to a regular file is followed and counted, so its target's
+LOC is counted twice (once via the real path, once via the link). Deferred:
+dedup by resolved path/inode in a later milestone. Escaping symlinks are
+correctly skipped (NFR-8). Symlinked directories are not descended in M1.
