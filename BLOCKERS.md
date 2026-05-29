@@ -47,3 +47,14 @@ scanners (skip built assets), I refined the priority to:
 `minified` = explicit `.min.js`/`.min.css` extension OR the long-line heuristic.
 If you prefer strict spec-order instead, revert internal/classify/classify.go's
 switch order. Otherwise I'll fold this into a product-spec F-2 amendment.
+
+## 5. LICENSE choice — OPEN (needed before public Release 0)
+
+codeprint has no LICENSE file yet. A public OSS release needs one. Dependencies
+are Apache-2.0 (go-enry, cobra) and MIT (gocloc, invopop, denormal, toml,
+fatih/color) — all permissive, compatible with either choice.
+
+Recommendation: **Apache-2.0** (matches go-enry; patent grant suits a tool with
+external consumers) or **MIT** (simpler). Your call — add a `LICENSE` file and
+commit. goreleaser archives already include `LICENSE*`. Until then, M5 is
+"release-ready" but the tag is held (see RELEASE.md).
