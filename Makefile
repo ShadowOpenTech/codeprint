@@ -26,11 +26,14 @@ cover: ## run tests and enforce the pipeline coverage gate
 	echo "pipeline coverage: $$total% (min $(COVER_MIN)%)"; \
 	awk "BEGIN{exit !($$total >= $(COVER_MIN))}" || { echo "coverage below $(COVER_MIN)%"; exit 1; }
 
+# SRCDIRS excludes testdata/ (intentionally-varied corpus files must not be formatted/linted).
+SRCDIRS := cmd internal pkg
+
 fmt: ## apply gofumpt
-	$(GOBIN)/gofumpt -w .
+	$(GOBIN)/gofumpt -w $(SRCDIRS)
 
 lint: ## check formatting + run golangci-lint
-	@test -z "$$($(GOBIN)/gofumpt -l .)" || { echo "gofumpt: files need formatting:"; $(GOBIN)/gofumpt -l .; exit 1; }
+	@test -z "$$($(GOBIN)/gofumpt -l $(SRCDIRS))" || { echo "gofumpt: files need formatting:"; $(GOBIN)/gofumpt -l $(SRCDIRS); exit 1; }
 	$(GOBIN)/golangci-lint run
 
 vet: ## go vet
