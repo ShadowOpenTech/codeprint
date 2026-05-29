@@ -3,6 +3,7 @@ module github.com/ShadowOpenTech/codeprint
 go 1.24
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817
 	github.com/go-enry/go-enry/v2 v2.9.6
 	github.com/hhatto/gocloc v0.7.0
