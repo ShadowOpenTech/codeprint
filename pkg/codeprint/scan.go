@@ -15,6 +15,7 @@ import (
 	"github.com/ShadowOpenTech/codeprint/internal/detect"
 	"github.com/ShadowOpenTech/codeprint/internal/framework"
 	"github.com/ShadowOpenTech/codeprint/internal/loc"
+	"github.com/ShadowOpenTech/codeprint/internal/progress"
 	"github.com/ShadowOpenTech/codeprint/internal/walk"
 )
 
@@ -119,6 +120,7 @@ func process(ctx context.Context, refs []walk.FileRef, cfg *config) ([]processed
 			}()
 
 			pf, serr := processOne(ref)
+			progress.Report()
 			mu.Lock()
 			if serr != nil {
 				scanErrs = append(scanErrs, *serr)
