@@ -43,7 +43,9 @@ Now auditable: the fingerprint's `symlinks` report exposes `followed_file`
 consumers can see the traversal gaps. The resolved-path dedup that would fix the
 double-count is the same mechanism that would enable safe symlinked-dir following.
 
-## 4. Decision made (for your review) — minified classification priority
+Tracked as GitHub issue #14 (label: future-improvement).
+
+## 4. Minified classification priority — RESOLVED (2026-05-30): kept; spec F-2 amended
 
 Spec F-2 ordered file-kind priority as binary > vendored > generated > minified.
 In practice enry/linguist folds minified files into "vendored" (.min.* extension)
@@ -54,8 +56,7 @@ scanners (skip built assets), I refined the priority to:
     binary > minified > vendored > generated > test > source
 
 `minified` = explicit `.min.js`/`.min.css` extension OR the long-line heuristic.
-If you prefer strict spec-order instead, revert internal/classify/classify.go's
-switch order. Otherwise I'll fold this into a product-spec F-2 amendment.
+Decision: **kept**. product-spec.md F-2 amended to document this order so doc and code agree.
 
 ## 5. LICENSE — RESOLVED (2026-05-30): Apache-2.0 committed
 
