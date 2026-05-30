@@ -37,6 +37,7 @@ Determinism (NFR-2) applies to the `fingerprint` payload only. The `_meta` envel
   "build_systems":   [ /* BuildSystem, sorted by path */ ],
   "framework_hints": [ /* FrameworkHint, sorted by (ecosystem, name) */ ],
   "container":       { "dockerfile_present": true },
+  "symlinks":        { /* SymlinkReport — traversal summary; surfaces completeness gaps */ },
   "errors":          [ /* ScanError, sorted by path — non-fatal (NFR-5) */ ],
   "workspaces":      null   // reserved for v2; ALWAYS null in v1 (field present so consumers code against it now)
 }
@@ -81,6 +82,15 @@ Determinism (NFR-2) applies to the `fingerprint` payload only. The `_meta` envel
 
 Always a **list**, never a singular `framework` (hard rule from ideation/feasibility).
 
+### SymlinkReport (added 2026-05-30)
+| Field | Type | Notes |
+|---|---|---|
+| `total` | int | total symlinks encountered |
+| `followed_file` | int | in-tree file symlinks that were followed and counted |
+| `skipped` | []SkippedSymlink | links not traversed, sorted by path |
+
+`SkippedSymlink` = `{ path, reason }` where `reason` ∈ `directory` (symlinked dir, not descended — avoids loops) \| `escaping` (target outside workspace, NFR-8) \| `unresolvable` (dangling). Invariant: `total = followed_file + len(skipped)`. **The resolved target is never emitted** (it may point outside the workspace — would leak host paths). This makes traversal gaps auditable: a non-empty `skipped` means some content was intentionally not walked.
+
 ### ScanError
 | Field | Type | Notes |
 |---|---|---|
@@ -113,4 +123,5 @@ Field `workspaces` is present and `null` in v1. The v2 shape (per-workspace sub-
 
 ## Change log
 
-- 2026-05-30: initial draft; confirmed. Per-file default ON with opt-out; percent as 2-decimal float; reserved `workspaces` field locked as null. Resolves ideation "per-file vs rollups" open question.
+- 2026-05-30: initial draft; confirmed.
+- 2026-05-30: added `symlinks` report (additive) — total/followed_file/skipped[{path,reason}]; surfaces traversal gaps, never emits targets. Per-file default ON with opt-out; percent as 2-decimal float; reserved `workspaces` field locked as null. Resolves ideation "per-file vs rollups" open question.

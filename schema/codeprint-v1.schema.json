@@ -276,6 +276,52 @@
           ],
           "description": "Container-related signals"
         },
+        "symlinks": {
+          "properties": {
+            "total": {
+              "type": "integer",
+              "description": "Total symlinks encountered"
+            },
+            "followed_file": {
+              "type": "integer",
+              "description": "In-tree file symlinks that were followed and counted"
+            },
+            "skipped": {
+              "items": {
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Repo-relative path of the symlink"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "directory",
+                      "escaping",
+                      "unresolvable"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "path",
+                  "reason"
+                ]
+              },
+              "type": "array",
+              "description": "Symlinks not traversed"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "total",
+            "followed_file",
+            "skipped"
+          ],
+          "description": "Symlink traversal summary; surfaces completeness gaps"
+        },
         "errors": {
           "items": {
             "properties": {
@@ -317,6 +363,7 @@
         "build_systems",
         "framework_hints",
         "container",
+        "symlinks",
         "errors",
         "workspaces"
       ],

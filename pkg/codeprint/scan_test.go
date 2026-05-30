@@ -103,6 +103,27 @@ func TestEscapingSymlinkSkipped(t *testing.T) {
 	}
 }
 
+func TestSymlinkReport(t *testing.T) {
+	fp := scan(t)
+	s := fp.Symlinks
+	if s.Total != s.FollowedFile+len(s.Skipped) {
+		t.Errorf("invariant broken: total %d != followed_file %d + skipped %d", s.Total, s.FollowedFile, len(s.Skipped))
+	}
+	// The corpus has an in-tree file symlink (followed) and an escaping one (skipped).
+	if s.FollowedFile < 1 {
+		t.Errorf("expected at least one followed file symlink, got %d", s.FollowedFile)
+	}
+	var sawEscaping bool
+	for _, sk := range s.Skipped {
+		if sk.Path == "testfiles/escaping_link" && sk.Reason == "escaping" {
+			sawEscaping = true
+		}
+	}
+	if !sawEscaping {
+		t.Errorf("expected escaping_link in skipped with reason=escaping, got %+v", s.Skipped)
+	}
+}
+
 func TestPercentsSumApproxAndRounded(t *testing.T) {
 	fp := scan(t)
 	if len(fp.Languages) == 0 {

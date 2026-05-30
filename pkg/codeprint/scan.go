@@ -37,7 +37,7 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 		opt(cfg)
 	}
 
-	refs, err := walk.Walk(root, walk.Config{
+	refs, symInfo, err := walk.Walk(root, walk.Config{
 		IncludeHidden: cfg.includeHidden,
 		MaxFileSize:   cfg.maxFileSize,
 		IgnoreFile:    cfg.ignoreFile,
@@ -63,6 +63,16 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 		fp.BuildSystems = append(fp.BuildSystems, BuildSystem{Ecosystem: m.Ecosystem, Path: m.Path})
 	}
 	fp.Container.DockerfilePresent = dockerfile
+
+	// Symlink report: surface traversal gaps (skipped dirs / escaping links).
+	fp.Symlinks = SymlinkReport{
+		Total:        symInfo.Total,
+		FollowedFile: symInfo.FollowedFile,
+		Skipped:      []SkippedSymlink{},
+	}
+	for _, s := range symInfo.Skipped {
+		fp.Symlinks.Skipped = append(fp.Symlinks.Skipped, SkippedSymlink{Path: s.Path, Reason: s.Reason})
+	}
 
 	// Framework hints: parse the detected manifests (best-effort, F-4).
 	absRoot, _ := filepath.Abs(root)
