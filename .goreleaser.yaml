@@ -57,7 +57,5 @@ release:
     name: codeprint
   prerelease: auto # v0.x.y-rc.* are flagged pre-release
 
-# JFrog Artifactory (primary distribution per flows F1) is published by a
-# separate CI step using the jfrog CLI (needs ARTIFACTORY_URL/ARTIFACTORY_TOKEN
-# secrets) — see .github/workflows/release.yml. OSS goreleaser handles the
-# GitHub Releases mirror + checksums above.
+# Distribution is GitHub Releases (above) + the Go module proxy (automatic on
+# tag, via `go install`). codeprint is open source; no private artifact registry.
