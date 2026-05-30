@@ -23,7 +23,11 @@ git rm -r testdata/corpus
 git submodule add https://github.com/ShadowOpenTech/codeprint-testcorpus testdata/corpus
 ```
 
-## 2. Release publish (JFrog + real v0.1.0 tag) — DEFERRED BY DESIGN
+## 2. JFrog / release publish — RESOLVED (2026-05-30)
+
+codeprint is open source: distribution is **GitHub Releases + Go module proxy** (free/public). JFrog dropped (was for internal air-gapped runners). The real v0.1.0 tag is still the user's to push — see RELEASE.md.
+
+_Original note:_
 
 Per your auto-mode decision: build **release-ready**, stop before the real tag/publish. JFrog credentials / GitHub-Actions secrets are not available to me, and a public tag is irreversible. The exact tag + publish steps will be in the final M5 report / deploy checklist.
 
@@ -48,7 +52,7 @@ scanners (skip built assets), I refined the priority to:
 If you prefer strict spec-order instead, revert internal/classify/classify.go's
 switch order. Otherwise I'll fold this into a product-spec F-2 amendment.
 
-## 5. LICENSE choice — OPEN (needed before public Release 0)
+## 5. LICENSE — RESOLVED (2026-05-30): Apache-2.0 committed
 
 codeprint has no LICENSE file yet. A public OSS release needs one. Dependencies
 are Apache-2.0 (go-enry, cobra) and MIT (gocloc, invopop, denormal, toml,

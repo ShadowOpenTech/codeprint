@@ -84,7 +84,14 @@ Pre-1.0 (v0.x): the schema may change between releases until v1.0.0 GA. See [`do
 ## Development
 
 ```bash
+git clone --recurse-submodules https://github.com/ShadowOpenTech/codeprint
 make build      # CGO_ENABLED=0 static binary → bin/codeprint
 make verify     # everything CI runs: fmt, vet, lint, schema-drift, test, coverage, vuln
 make bench      # throughput benchmark
 ```
+
+The correctness test corpus is a submodule ([codeprint-testcorpus](https://github.com/ShadowOpenTech/codeprint-testcorpus)) — clone with `--recurse-submodules`.
+
+## License
+
+[Apache-2.0](LICENSE) © ShadowOpenTech.

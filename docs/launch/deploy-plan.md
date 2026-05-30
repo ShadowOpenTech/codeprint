@@ -49,10 +49,11 @@ Plus SHA256 checksums. Binary target <30MB stripped (NFR-3). Code-signing is a f
 
 | Channel | Role | Mechanism |
 |---|---|---|
-| **JFrog** | Primary — org scan plugin pulls the binary | goreleaser upload (flows F1) |
-| **GitHub Releases** | Public mirror | goreleaser |
-| **Go module proxy** (`go get`) | Library consumers (cradar, in-process) | automatic on tag via `proxy.golang.org` |
+| **GitHub Releases** | Primary — public binaries + checksums | goreleaser |
+| **Go module proxy** (`go install`) | Library + CLI consumers (cradar, in-process) | automatic on tag via `proxy.golang.org` |
 | **Schema** | `schema/codeprint-v1.schema.json` at tag-pinned raw URL; schemastore registration post-v1.0.0 GA | F-7 |
+
+> **Amendment (2026-05-30):** codeprint is open source; distribution is GitHub Releases + Go module proxy (both free/public). The original JFrog-primary plan (flows F1, for internal locked-down runners) is **dropped** — re-add a JFrog upload step if an air-gapped internal pipeline ever needs it.
 
 ## Versioning & release trigger
 
@@ -64,7 +65,7 @@ Plus SHA256 checksums. Binary target <30MB stripped (NFR-3). Code-signing is a f
 
 - **Rollback:** releases are immutable artifacts; "rollback" = consumers pin a prior version. Stored fingerprints from any version remain valid forever (F-7 backward-compat).
 - **Provenance:** each release's `_meta.producer.version` lets consumers trace which binary produced a fingerprint (flows F2).
-- **No telemetry, no phone-home** (NFR-8). Release health is observed via GitHub Releases / JFrog download stats only.
+- **No telemetry, no phone-home** (NFR-8). Release health is observed via GitHub Releases download stats only.
 - **Schema hosting:** the tag-pinned raw GitHub URL is the immutable reference at GA; pre-1.0 uses a floating/branch URL or omits `$schema` (F-7 open question, resolved per spec).
 
 ## Release 0 checklist (ties to M5, [../planning/task-breakdown.md](../planning/task-breakdown.md))
