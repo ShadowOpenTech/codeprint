@@ -2,11 +2,11 @@
 
 Logged during the autonomous M0→Release-0 run. None of these stop progress; each has a working interim approach. Resolve when convenient.
 
-## 1. Test-corpus hosting & submodule conversion — OPEN
+## 1. Test-corpus hosting & submodule conversion — RESOLVED (2026-05-30)
+
+Published `ShadowOpenTech/codeprint-testcorpus` (public) and converted `testdata/corpus/` into a SHA-pinned submodule (pinned to `9e3f476`). CI checks out submodules recursively. Original context retained below.
 
 **Context:** the plan (test-plan.md) called for the correctness corpus to be a SHA-pinned **git submodule**. Building it was approved; **publishing it was not**, and the auto-mode classifier (correctly) blocked me from creating a *public* org repo since visibility was my choice and is irreversible.
-
-**Interim approach (in effect):** the corpus is vendored as a working copy at `testdata/corpus/` (self-contained; CI works without a remote). A standalone git repo also exists locally at `~/projects/codeprint-testcorpus` (commit `e362238`), ready to become the submodule source.
 
 **Decision needed from you:**
 - Push `~/projects/codeprint-testcorpus` to `ShadowOpenTech` — **public or private?**
