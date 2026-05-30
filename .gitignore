@@ -44,3 +44,6 @@ Thumbs.db
 /bin/
 coverage.out
 *.out
+
+# harness
+.claude/scheduled_tasks.lock

@@ -31,7 +31,9 @@ archives:
         formats: [zip]
     files:
       - README.md
+      - CHANGELOG.md
       - LICENSE*
+      - NOTICE
       - schema/codeprint-v1.schema.json
 
 checksum:
