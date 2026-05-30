@@ -1,0 +1,3 @@
+[submodule "testdata/corpus"]
+	path = testdata/corpus
+	url = https://github.com/ShadowOpenTech/codeprint-testcorpus
