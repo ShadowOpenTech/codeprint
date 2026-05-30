@@ -43,6 +43,22 @@ checksum:
 changelog:
   use: github
   sort: asc
+  # Keep release notes a short, meaningful feat/fix summary — exclude merge
+  # commits, non-conventional history, and noise (docs/chore/ci/build/test).
+  filters:
+    exclude:
+      - '^docs'
+      - '^test'
+      - '^chore'
+      - '^ci'
+      - '^build'
+      - '^style'
+      - '^refactor'
+      - 'Merge pull request'
+      - 'Merge branch'
+      - 'Initial project setup'
+      - 'Finalize brand'
+      - 'Confirm design phase'
   groups:
     - title: Features
       regexp: '^feat'
@@ -50,14 +66,15 @@ changelog:
     - title: Fixes
       regexp: '^fix'
       order: 1
-    - title: Others
-      order: 99
 
 release:
   github:
     owner: ShadowOpenTech
     name: codeprint
   prerelease: auto # v0.x.y-rc.* are flagged pre-release
+  header: |
+    Curated summary: [CHANGELOG.md](https://github.com/ShadowOpenTech/codeprint/blob/main/CHANGELOG.md).
+    Binaries below: linux & macOS (amd64 + arm64), windows (amd64), with sha256 `checksums.txt`.
 
 # Distribution is GitHub Releases (above) + the Go module proxy (automatic on
 # tag, via `go install`). codeprint is open source; no private artifact registry.
