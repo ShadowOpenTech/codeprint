@@ -1,7 +1,8 @@
-# codeprint — Master Index & Project Kickoff
+# codeprint — Master Index
 
-**Status:** planning complete — ready for development (M0).
+**Status:** implemented — M0–M5 complete and merged; release-ready at **v0.1.0**.
 **Updated:** 2026-05-30
+**Changelog:** [../CHANGELOG.md](../CHANGELOG.md)
 
 ## What codeprint is
 
@@ -41,9 +42,18 @@ Go 1.23+ · `go-enry/v2` (detection) · `gocloc` (LOC) · `cobra` (CLI) · `invo
 | Gradle Groovy DSL parsing | Regex fallback, documented partial coverage |
 | Determinism regressions | Map-ranging ban + twice-and-diff CI gate + `/check-determinism` |
 
-## Milestone 1 (where development starts)
+## Implementation status (all milestones complete)
 
-After **M0** (scaffold, schema-first CI, corpus submodules), **M1** delivers the MVP core: `walk` (+ignore +symlink containment) → `detect` → `loc` → `Scan` collector → deterministic JSON. A working `codeprint .` emitting a correct language/LOC fingerprint. Full task list: [planning/task-breakdown.md](planning/task-breakdown.md).
+| Milestone | Delivered | Code |
+|---|---|---|
+| M0 Scaffold | module, schema-first drift gate, CI, test corpus submodule | `cmd/schemagen`, `internal/schemagen`, `schema/` |
+| M1 Core scan | walk (ignore + symlink containment) → detect → LOC → deterministic `Scan` → JSON | `internal/{walk,detect,loc}`, `pkg/codeprint/scan.go` |
+| M2 Classification | source/test/generated/minified/vendored/binary + build systems | `internal/{classify,buildsys}` |
+| M3 Framework hints | per-ecosystem manifest parsers (list + confidence + evidence) | `internal/framework` |
+| M4 CLI UX | cobra CLI, pretty/summary, progress spinner, sanitization | `cmd/codeprint`, `internal/{emit,progress}` |
+| M5 Hardening | benchmark, goreleaser (5 platforms), release workflow, docs | `.goreleaser.yaml`, `.github/workflows/release.yml` |
+
+Full task list and acceptance criteria: [planning/task-breakdown.md](planning/task-breakdown.md). Tracked future improvements: GitHub issues #14 (symlink resolved-path dedup), #16 (`.github/` classification).
 
 ## Enforcement (active via root `CLAUDE.md`)
 
@@ -56,5 +66,5 @@ After **M0** (scaffold, schema-first CI, corpus submodules), **M1** delivers the
 
 - GitHub: `github.com/ShadowOpenTech/codeprint`
 - CI: GitHub Actions (all quality/security gates)
-- Release: goreleaser on manual semver tag → JFrog (primary) + GitHub Releases (mirror) + Go proxy
+- Release: goreleaser on manual semver tag → GitHub Releases + Go module proxy (`go install`). Open source (Apache-2.0); no private registry. See [../RELEASE.md](../RELEASE.md).
 - Contributors: nk-sentinel, blizesg
