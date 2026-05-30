@@ -25,6 +25,9 @@ builds:
 
 archives:
   - id: codeprint
+    # Friendly, visually-distinct names: macos/linux/windows + x86_64/arm64
+    # (x86_64 vs arm64 is unambiguous, unlike amd64 vs arm64).
+    name_template: 'codeprint_{{ .Version }}_{{ if eq .Os "darwin" }}macos{{ else }}{{ .Os }}{{ end }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}'
     formats: [tar.gz]
     format_overrides:
       - goos: windows
