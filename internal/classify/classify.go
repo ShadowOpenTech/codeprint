@@ -135,13 +135,33 @@ func isMinified(path string, content []byte) bool {
 // DO NOT EDIT" convention and the @generated token.
 var generatedHeaderRe = regexp.MustCompile(`(?im)^.{0,8}code generated .*do not edit|@generated`)
 
+// generatedHeaderLines is how many leading lines are scanned for the marker.
+// Real generated markers sit at the very top of a file (line 1, or after a
+// build-tag + blank line). Scanning only the head avoids false positives from
+// source/test files that merely mention the phrase in a string or comment
+// deeper down (e.g. classify_test.go).
+const generatedHeaderLines = 5
+
 func hasGeneratedHeader(content []byte) bool {
 	if len(content) == 0 {
 		return false
 	}
-	head := content
-	if len(head) > 2048 {
-		head = head[:2048]
+	return generatedHeaderRe.Match(headLines(content, generatedHeaderLines))
+}
+
+// headLines returns the first n lines of b (capped at 4 KB as a guard against a
+// pathological single huge line).
+func headLines(b []byte, n int) []byte {
+	if len(b) > 4096 {
+		b = b[:4096]
 	}
-	return generatedHeaderRe.Match(head)
+	for i := 0; i < len(b); i++ {
+		if b[i] == '\n' {
+			n--
+			if n == 0 {
+				return b[:i]
+			}
+		}
+	}
+	return b
 }
