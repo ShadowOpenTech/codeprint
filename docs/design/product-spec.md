@@ -43,11 +43,12 @@ v1 of codeprint delivers **seven features** covering the L2 scope decided in ide
 - Every file carries exactly one primary `kind` field: `source` | `test` | `generated` | `vendored` | `binary` | `minified`.
 - Classification rules, in priority order:
   1. `binary` — via `enry.IsBinary(content)`.
-  2. `vendored` — via `enry.IsVendor(path)`.
-  3. `generated` — via `enry.IsGenerated(path, content)` OR header regex matching `// Code generated` / `# DO NOT EDIT` family.
-  4. `minified` — extension match (`.min.js`, `.min.css`) OR heuristic `avg_line_length > 500 && newline_ratio < 0.01`.
+  2. `minified` — extension match (`.min.js`, `.min.css`) OR heuristic `avg_line_length > 500 && newline_ratio < 0.01`.
+  3. `vendored` — via `enry.IsVendor(path)`.
+  4. `generated` — via `enry.IsGenerated(path, content)` OR anchored header regex matching the `// Code generated … DO NOT EDIT` / `@generated` family.
   5. `test` — path heuristic table per ecosystem (`_test.go`, `*.spec.ts`, `*Test.java`, `test/`, `tests/`, `spec/`, `__tests__/`).
   6. Default: `source`.
+  - **Priority note (architecture amendment, 2026-05-30):** `minified` is checked **before** `vendored`/`generated`. enry/linguist folds minified files into vendored (`.min.*` extension) and generated (very long lines), which would make the dedicated `minified` kind unreachable. Since `minified` is the more specific, actionable signal for scanners (skip built assets), it takes precedence. Implemented in `internal/classify`.
 - Each file additionally carries a `flags` list for non-mutually-exclusive properties (e.g., a generated test file can be `kind: generated` with `flags: ["test"]`).
 - **Known v1 limitation:** generated files that lack a recognizable header (`// Code generated`, `# DO NOT EDIT` family) and are not matched by enry's generated-file rules are classified `source`. Some tools (e.g., certain `protoc`/OpenAPI generators) emit no header and will be missed. Refinement deferred post-v1.
 
@@ -245,3 +246,4 @@ Codes chosen per [sysexits.h BSD convention](https://man7.org/linux/man-pages/ma
 - 2026-05-27: confirmed. Resolved before lock: F-3 detection changed to flat full-tree list with marker paths (was "root + one level down"); F-7 `$schema` immutable-URL requirement scoped to v1.0.0 GA (was unconditional, conflicted with v0.x freedom); F-2 added known limitation note for header-less generated files. Exit-code conflict with `user-flows.md` resolved in favor of NFR-6 sysexits codes (flows doc updated to match).
 - 2026-05-30: architecture-phase amendments (4.3 API Design). F-6: `Scan` now takes `ctx context.Context` as first param (cancellation/timeout). F-5: added default TTY-gated progress spinner (CI-silent) + enriched pretty summary with timing; timing is human-output-only, never in JSON.
 - 2026-05-30: architecture-phase amendment (4.5 Security Check). NFR-8: symlink following now requires workspace containment (out-of-tree targets skipped).
+- 2026-05-30: F-2 classification priority amended to `binary > minified > vendored > generated > test > source` (minified moved ahead of vendored/generated) — enry folds minified into those kinds, so the dedicated `minified` signal needs precedence to survive. Matches `internal/classify`.
