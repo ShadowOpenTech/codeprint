@@ -36,7 +36,12 @@ Per your auto-mode decision: build **release-ready**, stop before the real tag/p
 An in-tree symlink to a regular file is followed and counted, so its target's
 LOC is counted twice (once via the real path, once via the link). Deferred:
 dedup by resolved path/inode in a later milestone. Escaping symlinks are
-correctly skipped (NFR-8). Symlinked directories are not descended in M1.
+correctly skipped (NFR-8). Symlinked directories are not descended.
+
+Now auditable: the fingerprint's `symlinks` report exposes `followed_file`
+(where this double-count lives) and `skipped[]` (dirs/escaping not walked), so
+consumers can see the traversal gaps. The resolved-path dedup that would fix the
+double-count is the same mechanism that would enable safe symlinked-dir following.
 
 ## 4. Decision made (for your review) — minified classification priority
 

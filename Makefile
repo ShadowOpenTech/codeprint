@@ -21,7 +21,9 @@ test: ## run all tests with race detector
 	$(GO) test -race $(PKGS)
 
 cover: ## run tests and enforce the pipeline coverage gate
-	$(GO) test -covermode=atomic -coverpkg=$(COVERPKGS) -coverprofile=coverage.out $(PKGS)
+	# -count=1 forces a full run: cached results produce partial cross-package
+	# -coverpkg profiles, making the gate flaky. Always recompute.
+	$(GO) test -count=1 -covermode=atomic -coverpkg=$(COVERPKGS) -coverprofile=coverage.out $(PKGS)
 	@total=$$($(GO) tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$$3); print $$3}'); \
 	echo "pipeline coverage: $$total% (min $(COVER_MIN)%)"; \
 	awk "BEGIN{exit !($$total >= $(COVER_MIN))}" || { echo "coverage below $(COVER_MIN)%"; exit 1; }

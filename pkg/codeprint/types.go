@@ -46,6 +46,7 @@ type Fingerprint struct {
 	BuildSystems   []BuildSystem    `json:"build_systems" jsonschema:"description=Detected build systems, sorted by path"`
 	FrameworkHints []FrameworkHint  `json:"framework_hints" jsonschema:"description=Framework hints, sorted by (ecosystem,name); always a list"`
 	Container      Container        `json:"container" jsonschema:"description=Container-related signals"`
+	Symlinks       SymlinkReport    `json:"symlinks" jsonschema:"description=Symlink traversal summary; surfaces completeness gaps"`
 	Errors         []ScanError      `json:"errors" jsonschema:"description=Non-fatal per-file errors, sorted by path"`
 	// Workspaces is reserved for v2 per-workspace fingerprints (monorepos).
 	// It is always null in v1; the field name is locked so v2 adds population,
@@ -133,6 +134,22 @@ type Evidence struct {
 // Container holds container-related repository signals.
 type Container struct {
 	DockerfilePresent bool `json:"dockerfile_present" jsonschema:"description=True if a Dockerfile was found"`
+}
+
+// SymlinkReport summarizes how symlinks were handled during the scan. It makes
+// traversal gaps explicit: skipped directories and escaping links mean some
+// content was intentionally not walked. total = followed_file + len(skipped).
+type SymlinkReport struct {
+	Total        int              `json:"total" jsonschema:"description=Total symlinks encountered"`
+	FollowedFile int              `json:"followed_file" jsonschema:"description=In-tree file symlinks that were followed and counted"`
+	Skipped      []SkippedSymlink `json:"skipped" jsonschema:"description=Symlinks not traversed, sorted by path"`
+}
+
+// SkippedSymlink is a symlink that was not followed. The resolved target is
+// never recorded (it may point outside the workspace).
+type SkippedSymlink struct {
+	Path   string `json:"path" jsonschema:"description=Repo-relative path of the symlink"`
+	Reason string `json:"reason" jsonschema:"enum=directory,enum=escaping,enum=unresolvable"`
 }
 
 // ScanError is a non-fatal per-file failure. Its presence does not change the

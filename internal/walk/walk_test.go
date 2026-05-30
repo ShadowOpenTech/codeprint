@@ -37,7 +37,7 @@ func TestWalkIgnoreAndHidden(t *testing.T) {
 	write(t, dir, ".codeprintignore", ".cpignore_target.txt\n")
 
 	t.Run("default includes hidden, applies ignores", func(t *testing.T) {
-		refs, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 1 << 20})
+		refs, _, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 1 << 20})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -60,7 +60,7 @@ func TestWalkIgnoreAndHidden(t *testing.T) {
 	})
 
 	t.Run("no-hidden excludes dotfiles", func(t *testing.T) {
-		refs, err := Walk(dir, Config{IncludeHidden: false, MaxFileSize: 1 << 20})
+		refs, _, err := Walk(dir, Config{IncludeHidden: false, MaxFileSize: 1 << 20})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,7 +78,7 @@ func TestWalkExtraIgnoreFile(t *testing.T) {
 	if err := os.WriteFile(ignore, []byte("b.txt\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	refs, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 1 << 20, IgnoreFile: ignore})
+	refs, _, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 1 << 20, IgnoreFile: ignore})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestWalkMaxFileSize(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "small.txt", "hi\n")
 	write(t, dir, "big.txt", "0123456789ABCDEF\n")
-	refs, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 5})
+	refs, _, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,9 +111,52 @@ func TestWalkMaxFileSize(t *testing.T) {
 }
 
 func TestWalkUnreadableRoot(t *testing.T) {
-	_, err := Walk(filepath.Join(t.TempDir(), "nope"), Config{MaxFileSize: 1 << 20})
+	_, _, err := Walk(filepath.Join(t.TempDir(), "nope"), Config{MaxFileSize: 1 << 20})
 	if err == nil {
 		t.Error("expected error for nonexistent root")
+	}
+}
+
+func TestWalkSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "target.txt", "hello\n")
+	write(t, dir, "sub/real.txt", "x\n")
+	// in-tree file symlink → followed
+	if err := os.Symlink(filepath.Join(dir, "target.txt"), filepath.Join(dir, "flink.txt")); err != nil {
+		t.Fatal(err)
+	}
+	// in-tree directory symlink → skipped (directory)
+	if err := os.Symlink(filepath.Join(dir, "sub"), filepath.Join(dir, "dlink")); err != nil {
+		t.Fatal(err)
+	}
+	// escaping symlink → skipped (escaping)
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outside, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "elink")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, sym, err := Walk(dir, Config{IncludeHidden: true, MaxFileSize: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sym.Total != 3 {
+		t.Errorf("total = %d, want 3", sym.Total)
+	}
+	if sym.FollowedFile != 1 {
+		t.Errorf("followed_file = %d, want 1", sym.FollowedFile)
+	}
+	reasons := map[string]string{}
+	for _, s := range sym.Skipped {
+		reasons[s.Path] = s.Reason
+	}
+	if reasons["dlink"] != symDirectory {
+		t.Errorf("dlink reason = %q, want directory", reasons["dlink"])
+	}
+	if reasons["elink"] != symEscaping {
+		t.Errorf("elink reason = %q, want escaping", reasons["elink"])
 	}
 }
 

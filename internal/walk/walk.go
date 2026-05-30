@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	gitignore "github.com/denormal/go-gitignore"
@@ -28,16 +29,40 @@ type FileRef struct {
 	Oversized bool
 }
 
+// SymlinkInfo summarizes symlinks seen during the walk. Skipped lists the links
+// that were not traversed (with a reason), making traversal gaps auditable.
+type SymlinkInfo struct {
+	Total        int
+	FollowedFile int
+	Skipped      []SkippedLink
+}
+
+// SkippedLink is a symlink that was not followed. Path is repo-relative; the
+// resolved target is never recorded (it may point outside the workspace).
+type SkippedLink struct {
+	Path   string
+	Reason string // "directory" | "escaping" | "unresolvable"
+}
+
+// Symlink resolution categories.
+const (
+	symFile         = "file"
+	symDirectory    = "directory"
+	symEscaping     = "escaping"
+	symUnresolvable = "unresolvable"
+)
+
 // Walk returns the files under root that pass the ignore/hidden/symlink rules,
 // in filesystem order (the caller sorts for determinism). It returns an error
 // only when root itself is unreadable.
-func Walk(root string, cfg Config) ([]FileRef, error) {
+func Walk(root string, cfg Config) ([]FileRef, SymlinkInfo, error) {
+	var sym SymlinkInfo
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		return nil, err
+		return nil, sym, err
 	}
 	if _, err := os.Stat(absRoot); err != nil {
-		return nil, err
+		return nil, sym, err
 	}
 
 	matchers := buildMatchers(absRoot, cfg)
@@ -80,11 +105,16 @@ func Walk(root string, cfg Config) ([]FileRef, error) {
 
 		// Symlinks: contain to the workspace root.
 		if d.Type()&fs.ModeSymlink != 0 {
-			ref, ok := resolveSymlink(absRoot, path, rel, cfg.MaxFileSize)
-			if ok {
+			sym.Total++
+			ref, cat := resolveSymlink(absRoot, path, rel, cfg.MaxFileSize)
+			if cat == symFile {
+				sym.FollowedFile++
 				refs = append(refs, ref)
+			} else {
+				// Directories are not descended (avoids loops); escaping links
+				// are skipped (NFR-8). Either way, record it as a gap.
+				sym.Skipped = append(sym.Skipped, SkippedLink{Path: rel, Reason: cat})
 			}
-			// Symlinked directories are not descended in M1 (avoids loops).
 			return nil
 		}
 
@@ -102,28 +132,36 @@ func Walk(root string, cfg Config) ([]FileRef, error) {
 		refs = append(refs, fileRef(rel, path, info.Size(), cfg.MaxFileSize))
 		return nil
 	})
-	return refs, walkErr
+	sort.Slice(sym.Skipped, func(i, j int) bool { return sym.Skipped[i].Path < sym.Skipped[j].Path })
+	return refs, sym, walkErr
 }
 
 func fileRef(rel, abs string, size, max int64) FileRef {
 	return FileRef{Rel: rel, Abs: abs, Size: size, Oversized: size > max}
 }
 
-// resolveSymlink follows a symlink only if its target stays within absRoot and
-// is a regular file. Escaping or unreadable links are skipped (ok=false).
-func resolveSymlink(absRoot, path, rel string, max int64) (FileRef, bool) {
+// resolveSymlink classifies a symlink: a contained regular file is followed
+// (returns the ref + symFile); a directory, an escaping target, or an
+// unresolvable link returns the category and an empty ref.
+func resolveSymlink(absRoot, path, rel string, max int64) (FileRef, string) {
 	target, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		return FileRef{}, false // dangling or unresolvable
+		return FileRef{}, symUnresolvable // dangling or unresolvable
 	}
 	if !withinRoot(absRoot, target) {
-		return FileRef{}, false // escapes the workspace — NFR-8 containment
+		return FileRef{}, symEscaping // escapes the workspace — NFR-8 containment
 	}
 	info, err := os.Stat(target)
-	if err != nil || !info.Mode().IsRegular() {
-		return FileRef{}, false
+	if err != nil {
+		return FileRef{}, symUnresolvable
 	}
-	return fileRef(rel, path, info.Size(), max), true
+	if info.IsDir() {
+		return FileRef{}, symDirectory // not descended (avoids loops)
+	}
+	if !info.Mode().IsRegular() {
+		return FileRef{}, symUnresolvable
+	}
+	return fileRef(rel, path, info.Size(), max), symFile
 }
 
 // withinRoot reports whether target is inside (or equal to) absRoot.
