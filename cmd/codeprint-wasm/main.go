@@ -13,16 +13,20 @@ import (
 	"github.com/ShadowOpenTech/codeprint/pkg/codeprint"
 )
 
+// fingerprint returns the fingerprint JSON string; throws a JS Error on
+// failure. The thrown error (a real JS Error, surfaced by wasm_exec via panic)
+// is caught by the JS worker's try/catch and is distinguishable from a
+// successful JSON return.
 func fingerprint(_ js.Value, args []js.Value) any {
 	if len(args) < 1 {
-		return errJSON("missing input")
+		throw("missing input")
 	}
 	var in struct {
 		Files   map[string]string `json:"files"`
 		NoFiles bool              `json:"noFiles"`
 	}
 	if err := json.Unmarshal([]byte(args[0].String()), &in); err != nil {
-		return errJSON("bad input: " + err.Error())
+		throw("bad input: " + err.Error())
 	}
 	files := make(map[string][]byte, len(in.Files))
 	for p, c := range in.Files {
@@ -34,16 +38,17 @@ func fingerprint(_ js.Value, args []js.Value) any {
 	}
 	fp, err := codeprint.ScanFiles(context.Background(), files, opts...)
 	if err != nil {
-		return errJSON(err.Error())
+		throw(err.Error())
 	}
 	out := codeprint.NewOutput(fp, "", "wasm", "")
 	b, _ := json.Marshal(out)
 	return string(b)
 }
 
-func errJSON(msg string) string {
-	b, _ := json.Marshal(map[string]string{"error": msg})
-	return string(b)
+// throw raises a JS Error, which wasm_exec surfaces as a thrown JS exception
+// for the caller's try/catch to handle.
+func throw(msg string) {
+	panic(js.Global().Get("Error").New(msg))
 }
 
 func main() {
