@@ -10,7 +10,7 @@ PKGS      := ./...
 COVERPKGS := github.com/ShadowOpenTech/codeprint/pkg/codeprint,github.com/ShadowOpenTech/codeprint/internal/...
 COVER_MIN ?= 85.0
 
-.PHONY: all build test cover lint fmt vet vuln schema schema-check determinism bench tools clean verify
+.PHONY: all build test cover lint fmt vet vuln schema schema-check determinism bench tools clean verify wasm
 
 all: verify
 
@@ -60,6 +60,15 @@ tools: ## install pinned dev tools
 	$(GO) install mvdan.cc/gofumpt@latest
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+WASM_OUT ?= bin/codeprint.wasm
+
+wasm: ## build the WebAssembly module + copy the JS loader
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=js GOARCH=wasm $(GO) build -ldflags "-s -w" -o $(WASM_OUT) ./cmd/codeprint-wasm
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" bin/wasm_exec.js 2>/dev/null || \
+	 cp "$$($(GO) env GOROOT)/misc/wasm/wasm_exec.js" bin/wasm_exec.js
+	@ls -lh $(WASM_OUT) bin/wasm_exec.js
 
 clean:
 	rm -rf bin coverage.out

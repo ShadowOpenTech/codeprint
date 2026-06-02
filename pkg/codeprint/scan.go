@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 
@@ -46,18 +45,34 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 		return nil, fmt.Errorf("%w: %s: %v", ErrUnreadableRoot, root, err)
 	}
 
-	processed, scanErrs, err := process(ctx, refs, cfg)
+	return core(ctx, newDiskProvider(refs, symInfo), cfg)
+}
+
+// ScanFiles fingerprints an in-memory set of files (path -> content) without
+// touching the filesystem. Useful for in-process consumers that already hold
+// file contents (and the WASM playground). Filesystem-only behavior (ignore
+// rules, symlink handling) does not apply.
+func ScanFiles(ctx context.Context, files map[string][]byte, opts ...Option) (*Fingerprint, error) {
+	cfg := newConfig()
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	return core(ctx, &memProvider{files: files, max: cfg.maxFileSize}, cfg)
+}
+
+// core runs the shared post-discovery pipeline (process → assemble → buildsys →
+// symlinks → framework) over any provider, so the disk and in-memory paths
+// produce identical fingerprints from the same file set.
+func core(ctx context.Context, p provider, cfg *config) (*Fingerprint, error) {
+	processed, scanErrs, err := process(ctx, p, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	fp := assemble(processed, scanErrs, cfg)
 
-	// Build-system detection: flat full-tree marker scan over all walked paths.
-	paths := make([]string, len(refs))
-	for i, ref := range refs {
-		paths[i] = ref.Rel
-	}
+	// Build-system detection: flat full-tree marker scan over all paths.
+	paths := p.paths()
 	markers, dockerfile := buildsys.Detect(paths)
 	for _, m := range markers {
 		fp.BuildSystems = append(fp.BuildSystems, BuildSystem{Ecosystem: m.Ecosystem, Path: m.Path})
@@ -65,18 +80,10 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 	fp.Container.DockerfilePresent = dockerfile
 
 	// Symlink report: surface traversal gaps (skipped dirs / escaping links).
-	fp.Symlinks = SymlinkReport{
-		Total:        symInfo.Total,
-		FollowedFile: symInfo.FollowedFile,
-		Skipped:      []SkippedSymlink{},
-	}
-	for _, s := range symInfo.Skipped {
-		fp.Symlinks.Skipped = append(fp.Symlinks.Skipped, SkippedSymlink{Path: s.Path, Reason: s.Reason})
-	}
+	fp.Symlinks = p.symlinks()
 
 	// Framework hints: parse the detected manifests (best-effort, F-4).
-	absRoot, _ := filepath.Abs(root)
-	for _, h := range framework.Detect(absRoot, markers) {
+	for _, h := range framework.Detect(markers, p.read) {
 		fp.FrameworkHints = append(fp.FrameworkHints, FrameworkHint{
 			Name:       h.Name,
 			Ecosystem:  h.Ecosystem,
@@ -88,6 +95,53 @@ func Scan(ctx context.Context, root string, opts ...Option) (*Fingerprint, error
 	return fp, nil
 }
 
+// diskProvider reads content from the filesystem on demand.
+type diskProvider struct {
+	relToAbs map[string]string
+	refs     []walk.FileRef
+	sym      walk.SymlinkInfo
+}
+
+func newDiskProvider(refs []walk.FileRef, sym walk.SymlinkInfo) *diskProvider {
+	m := make(map[string]string, len(refs))
+	for _, r := range refs {
+		m[r.Rel] = r.Abs
+	}
+	return &diskProvider{relToAbs: m, refs: refs, sym: sym}
+}
+
+func (d *diskProvider) metas() []fileMeta {
+	out := make([]fileMeta, len(d.refs))
+	for i, r := range d.refs {
+		out[i] = fileMeta{rel: r.Rel, size: r.Size, oversized: r.Oversized}
+	}
+	return out
+}
+
+func (d *diskProvider) read(rel string) ([]byte, error) {
+	abs, ok := d.relToAbs[rel]
+	if !ok {
+		return nil, nil // soft: absent path yields no content (no framework hint)
+	}
+	return os.ReadFile(abs) //nolint:gosec // abs derived from our own contained walk
+}
+
+func (d *diskProvider) paths() []string {
+	p := make([]string, len(d.refs))
+	for i, r := range d.refs {
+		p[i] = r.Rel
+	}
+	return p
+}
+
+func (d *diskProvider) symlinks() SymlinkReport {
+	rep := SymlinkReport{Total: d.sym.Total, FollowedFile: d.sym.FollowedFile, Skipped: []SkippedSymlink{}}
+	for _, s := range d.sym.Skipped {
+		rep.Skipped = append(rep.Skipped, SkippedSymlink{Path: s.Path, Reason: s.Reason})
+	}
+	return rep
+}
+
 // processedFile is the per-file result before assembly.
 type processedFile struct {
 	rec          FileRecord
@@ -97,18 +151,20 @@ type processedFile struct {
 
 var detector detect.Detector = detect.EnryDetector{}
 
-// process runs detection/classification/counting across refs with a bounded
-// worker pool, recovering per-file panics into scan errors.
-func process(ctx context.Context, refs []walk.FileRef, cfg *config) ([]processedFile, []ScanError, error) {
+// process runs detection/classification/counting across the provider's files
+// with a bounded worker pool, recovering per-file panics into scan errors.
+// Content is read lazily via p.read in each worker.
+func process(ctx context.Context, p provider, cfg *config) ([]processedFile, []ScanError, error) {
+	metas := p.metas()
 	var (
 		mu       sync.Mutex
-		files    = make([]processedFile, 0, len(refs))
+		files    = make([]processedFile, 0, len(metas))
 		scanErrs []ScanError
 		sem      = make(chan struct{}, cfg.concurrency)
 		wg       sync.WaitGroup
 	)
 
-	for _, ref := range refs {
+	for _, meta := range metas {
 		select {
 		case <-ctx.Done():
 			wg.Wait()
@@ -118,18 +174,25 @@ func process(ctx context.Context, refs []walk.FileRef, cfg *config) ([]processed
 
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(ref walk.FileRef) {
+		go func(meta fileMeta) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			defer func() {
 				if r := recover(); r != nil {
 					mu.Lock()
-					scanErrs = append(scanErrs, ScanError{Path: ref.Rel, Reason: fmt.Sprintf("internal: %v", r)})
+					scanErrs = append(scanErrs, ScanError{Path: meta.rel, Reason: fmt.Sprintf("internal: %v", r)})
 					mu.Unlock()
 				}
 			}()
 
-			pf, serr := processOne(ref)
+			var (
+				content []byte
+				err     error
+			)
+			if !meta.oversized {
+				content, err = p.read(meta.rel)
+			}
+			pf, serr := processOne(meta, content, err)
 			progress.Report()
 			mu.Lock()
 			if serr != nil {
@@ -138,7 +201,7 @@ func process(ctx context.Context, refs []walk.FileRef, cfg *config) ([]processed
 				files = append(files, pf)
 			}
 			mu.Unlock()
-		}(ref)
+		}(meta)
 	}
 	wg.Wait()
 
@@ -148,26 +211,26 @@ func process(ctx context.Context, refs []walk.FileRef, cfg *config) ([]processed
 	return files, scanErrs, nil
 }
 
-// processOne handles a single file: read, detect, classify, count.
-func processOne(ref walk.FileRef) (processedFile, *ScanError) {
-	rec := FileRecord{Path: ref.Rel, Bytes: ref.Size, Flags: []string{}}
+// processOne handles a single file: detect, classify, count over already-read
+// content. readErr is the error (if any) from reading the file's content.
+func processOne(meta fileMeta, content []byte, readErr error) (processedFile, *ScanError) {
+	rec := FileRecord{Path: meta.rel, Bytes: meta.size, Flags: []string{}}
 
-	if ref.Oversized {
+	if meta.oversized {
 		rec.Kind = KindSource
 		rec.Flags = []string{flagSkippedLarge}
 		// Language by filename only (no content read).
-		rec.Language = detector.Detect(ref.Rel, nil).Language
+		rec.Language = detector.Detect(meta.rel, nil).Language
 		return processedFile{rec: rec}, nil
 	}
 
-	content, err := os.ReadFile(ref.Abs)
-	if err != nil {
-		return processedFile{}, &ScanError{Path: ref.Rel, Reason: err.Error()}
+	if readErr != nil {
+		return processedFile{}, &ScanError{Path: meta.rel, Reason: readErr.Error()}
 	}
 
-	det := detector.Detect(ref.Rel, content)
+	det := detector.Detect(meta.rel, content)
 	rec.Language = det.Language
-	kind, flags := classify.Classify(ref.Rel, content, det)
+	kind, flags := classify.Classify(meta.rel, content, det)
 	rec.Kind = Kind(kind)
 	if len(flags) > 0 {
 		rec.Flags = flags
@@ -175,7 +238,7 @@ func processOne(ref walk.FileRef) (processedFile, *ScanError) {
 
 	pf := processedFile{rec: rec}
 	if classify.CountsLOC(kind) {
-		c := loc.Count(ref.Rel, det.Language, content)
+		c := loc.Count(meta.rel, det.Language, content)
 		rec.Code, rec.Comment, rec.Blank = c.Code, c.Comment, c.Blank
 		pf.commentAware = c.CommentAware
 		pf.countsLOC = true

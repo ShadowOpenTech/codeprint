@@ -9,7 +9,6 @@ package framework
 import (
 	"encoding/json"
 	"encoding/xml"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -30,16 +29,15 @@ type Hint struct {
 
 const confHigh = "high"
 
-// Detect reads each marker's manifest and returns framework hints, sorted by
-// (ecosystem, name, path) and de-duplicated.
-func Detect(absRoot string, markers []buildsys.Marker) []Hint {
+// Detect reads each marker's manifest via read() and returns framework hints,
+// sorted by (ecosystem, name, path) and de-duplicated. read returns the manifest
+// content for a repo-relative path; an unreadable/absent manifest yields no hint.
+func Detect(markers []buildsys.Marker, read func(string) ([]byte, error)) []Hint {
 	var hints []Hint
 	for _, m := range markers {
-		// m.Path is a repo-relative marker discovered by our own contained walk
-		// (symlink-escapes already excluded), joined under absRoot — not user input.
-		content, err := os.ReadFile(filepath.Join(absRoot, m.Path)) //nolint:gosec // contained walk path joined under absRoot
-		if err != nil {
-			continue // soft: unreadable manifest yields no hint
+		content, err := read(m.Path)
+		if err != nil || content == nil {
+			continue // soft: unreadable/absent manifest yields no hint
 		}
 		base := filepath.Base(m.Path)
 		hints = append(hints, parse(m.Ecosystem, base, m.Path, content)...)
